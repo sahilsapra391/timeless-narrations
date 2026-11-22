@@ -67,8 +67,19 @@ Ordinary paragraphs use the deep narrator. A character keeps the same voice thro
 
 For an existing cloud VM, clone this repository in that VM and run `bash scripts/bootstrap.sh` with Python 3.11. A coding agent can prepare a script from accessible source documents. The renderer takes Markdown or chaptered JSON. Use a JSON object with `title`, optional `author`, `cast`, and `chapters`. Each chapter has `title` and `lines`, and each line has `text`, `speaker`, and an optional `kind` of `heading`.
 
+## Check the narration
+
+The renderer checks audio decoding and chapter metadata on every export. For an optional word-by-word comparison, run the transcription check in the same workspace.
+
+```sh
+.venv/bin/python -m pip install -r requirements-verify.txt
+.venv/bin/python -m timeless.verify inputs/book.md out/book.m4b --cast inputs/book.cast.json
+```
+
+The speech model runs in the workspace and produces a JSON report of differences. Listen to flagged passages before treating them as errors. Uncommon names, interjections, and number formatting can also differ in the transcript.
+
 ## How it works
 
-The renderer uses Kokoro, Misaki and eSpeak NG to synthesize each line. FFmpeg sets the speaking pace, normalizes loudness, and adds chapter markers. It verifies the finished audio by decoding it and reading back its chapter titles and timestamps. Character casting uses the speaker labels and profiles in your script. Plan for several minutes per chapter on a small CPU workspace.
+The renderer uses Kokoro, Misaki and eSpeak NG to synthesize each line. FFmpeg sets the speaking pace, normalizes loudness, and adds chapter markers. It verifies the finished audio by decoding it and reading back its chapter titles and timestamps. Character casting uses the speaker labels and profiles in your script. Plan for several minutes per chapter or longer on a small CPU workspace.
 
 The source is available under [GPL-3.0](LICENSE). Model files have their own upstream licenses and are fetched at runtime.
