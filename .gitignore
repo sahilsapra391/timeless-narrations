@@ -13,5 +13,7 @@ private/
 *.m4a
 *.m4b
 *.mp3
+*.mp4
 !samples/*.m4b
 !samples/*.mp3
+!samples/*.mp4

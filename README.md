@@ -1,85 +1,104 @@
 # Timeless Narrations
 
-Create a chaptered audiobook from a script with a deep narrator and a different voice for each character. Timeless Narrations runs on a cloud CPU and exports an M4B you can play in an audiobook app.
+Turn a manuscript into an audiobook in a cloud workspace. Pick a deep or warm narrator, give each character a voice, and export MP3, chaptered M4B, and MP4 with a title card.
 
-## Listen first
+## Listen to the samples
 
-| Sample | Cast |
-|---|---|
-| [A Call Before the Rain](samples/a-call-before-rain.m4b) | Deep narrator, adult woman and older woman |
-| [The Early Train](samples/the-early-train.m4b) | Deep narrator, a boy and his grandfather |
+Press play on either sample. Both are set to **90% of the original pace** with the same voices and pitch.
 
-Both are original short scenes. Their scripts and character profiles are in [samples](samples).
+### A Call Before the Rain
 
-## Run it in your browser
+Deep narrator, adult woman, and older woman.
 
-[**Open in GitHub Codespaces**](https://codespaces.new/sahilsapra391/timeless-narrations?quickstart=1)
+https://github.com/user-attachments/assets/8bff7fc0-91a8-4ec2-93f0-ae7fb9018650
 
-1. Sign in to GitHub and create the codespace. Wait for its setup to finish in the browser.
-2. Run the demo in the terminal.
+[Script](samples/a-call-before-rain.md) · [MP3](samples/a-call-before-rain.mp3) · [M4B](samples/a-call-before-rain.m4b) · [MP4](samples/a-call-before-rain.mp4)
+
+### The Early Train
+
+Deep narrator, a boy, and his grandfather.
+
+https://github.com/user-attachments/assets/a54a759e-978a-47f0-b053-4a6156df5426
+
+[Script](samples/the-early-train.md) · [MP3](samples/the-early-train.mp3) · [M4B](samples/the-early-train.m4b) · [MP4](samples/the-early-train.mp4)
+
+## Drop in a file and ask your coding agent
+
+Connect your agent to this repository and open its Linux cloud workspace, or [open the repo in GitHub Codespaces](https://codespaces.new/sahilsapra391/timeless-narrations?quickstart=1). Attach your PDF, EPUB, DOCX, TXT, or Markdown manuscript privately. Paste this prompt.
+
+> Read AGENTS.md. Turn my attached file into a full audiobook at 90% pace with the deep narrator. Cast identifiable characters using the listed voice personas. Preserve the wording and chapters, leave a natural pause between chapters, and give me downloadable MP3, M4B, and MP4 files.
+
+The agent prepares the manuscript and cast, runs the render, and returns the files. For a scanned PDF, it needs an OCR tool in the workspace and should check the recovered text before rendering. For long books, use a workspace that can stay running and keep the workspace files so the agent can resume. Setup and voice-model downloads run in the cloud. No local setup, GPU, or speech API key is needed.
+
+## Run it yourself in the browser
+
+1. [Open in Codespaces](https://codespaces.new/sahilsapra391/timeless-narrations?quickstart=1) and wait for setup.
+2. Upload the manuscript into `inputs/` in the file browser.
+3. Run this in the Codespace terminal with your filename.
 
    ```sh
-   bash scripts/demo.sh
+   bash scripts/render-book.sh inputs/book.pdf
    ```
 
-3. Find `out/a-call-before-rain.m4b` in the file browser. Right-click it and select **Download** to keep the audiobook.
+4. Right-click each file in `out/` and select **Download**.
 
-The first render fetches the voice model inside the Codespace. It uses your Codespaces allowance and requires no local installs, GPU, or speech API key. You can also run the original demos from the repo’s [Actions tab](https://github.com/sahilsapra391/timeless-narrations/actions/workflows/demo.yml) if you have permission to dispatch a workflow.
+To try the shorter demo first, run `bash scripts/demo.sh`. People with workflow access can also run the original demos on the [Actions tab](https://github.com/sahilsapra391/timeless-narrations/actions/workflows/demo.yml). The browser terminal and hosted runs use your cloud workspace allowance.
 
-## Hand it to your coding agent
+## Set the pace, narrator, and formats
 
-Connect your agent to this GitHub repository and open a **Linux cloud workspace** for it. In a Codespace, use an agent that can run commands in the Codespace terminal. In a hosted coding agent, use its repository connection and cloud terminal. Give it this prompt.
+Tell your agent the settings in plain language, or pass the switches directly.
 
-> Read AGENTS.md, run the A Call Before the Rain demo in this cloud workspace, wait for the render to finish, and give me the M4B as a downloadable artifact.
-
-For your own book, attach the manuscript to a private agent workspace and ask it to prepare a chaptered script and cast, render the file, and return the M4B. The [agent guide](AGENTS.md) gives it the commands. Use a workspace with enough continuous runtime for long books. Allow GitHub, PyPI, and Hugging Face downloads during setup if the workspace restricts network access.
-
-## Render your own script
-
-Put your script at `inputs/book.md`. Use a single `#` for the book title, `##` for each chapter, and blank lines between paragraphs or speaker turns. A new chapter gets a longer breath before the next reading begins.
-
-```md
-# A New Book
-
-## The First Chapter
-
-The train slipped past the platform as the lights came on.
-
-Leo: Did we miss it?
-
-Grandpa: That one goes north. Ours comes in three minutes.
+```sh
+bash scripts/render-book.sh inputs/book.epub \
+  --pace 0.90 --narrator warm-narrator --chapter-pause 3 \
+  --formats mp3 m4b mp4
 ```
 
-Create `inputs/book.cast.json` with one profile per speaker.
+| To change | Ask your agent | Flag |
+|---|---|---|
+| Overall pace | “Make it 10% slower” | `--pace 0.90`. Use `1.00` for the baseline or `1.10` for 10% faster. |
+| Reading rate | “Use about 155 words per minute” | `--wpm 155 --pace 1.00`. Set WPM to `0` for the model’s native pacing. |
+| Narrator | “Use the warm narrator” | `--narrator warm-narrator`. Browse the personas below. |
+| Chapter break | “Pause three seconds between chapters” | `--chapter-pause 3`. Applies before the overall pace adjustment. |
+| Download formats | “Give me an M4B and an MP3” | `--formats m4b mp3`. Request any combination in a single render. |
+
+Use **M4B** for audiobook players and chapter navigation, **MP3** for general audio players, and **MP4** for a shareable title-card video.
+
+## Voice personas
+
+| Persona | Delivery | Voice ID |
+|---|---|---|
+| `deep-narrator` | Lower-register American English narrator | `am_puck`, −2 semitones |
+| `warm-narrator` | Warm adult female narration or dialogue | `af_heart` |
+| `conversational-adult` | Conversational adult male | `am_michael` |
+| `older-woman` | Mature woman with a gentler, lower pitch | `af_sarah`, −0.75 semitones |
+| `older-man` | Lower-register older man | `am_onyx`, −0.75 semitones |
+| `young-girl` | Light, higher character voice | `af_sky`, +1 semitone |
+| `young-boy` | Brighter boy character voice | `am_puck`, +1.5 semitones |
+| `bright-adult` | Bright adult female character | `af_bella` |
+| `energetic-adult` | Energetic adult male character | `am_fenrir` |
+
+For dialogue, your agent can create Markdown with `##` chapter headings and character lines such as `Leo: Did we miss it?`. Leave a blank line between turns. It can assign these voices in a cast file.
 
 ```json
 {
-  "leo": {"age": "child", "gender": "male"},
-  "grandpa": {"age": "elderly", "gender": "male"}
+  "leo": {"persona": "young-boy"},
+  "grandpa": {"persona": "older-man"},
+  "mara": {"kokoro_voice": "af_heart", "pitch_semitones": 0.5}
 }
 ```
 
-```sh
-.venv/bin/python -m timeless inputs/book.md out/book.m4b --cast inputs/book.cast.json
-```
+Pass it with `--cast inputs/book.cast.json`. Profiles can also use `age` (`child`, `adult`, or `elderly`) and `gender` (`male` or `female`). The same character keeps the same voice throughout the book. Ordinary paragraphs use the narrator. The renderer reads speaker labels. The coding agent handles interpreting unlabeled dialogue in a source document.
 
-Ordinary paragraphs use the deep narrator. A character keeps the same voice throughout the book. Supported ages are `child`, `adult`, and `elderly`. To distinguish similar characters, set `kokoro_voice` and optionally `pitch_semitones` in the profile. To fine-tune pacing, add `--wpm 175` for a measured average, or `--wpm 0` to keep the model’s pace with the configured pauses. Run the same command again to reuse completed lines after an interruption.
+## Resume or check a render
 
-For an existing cloud VM, clone this repository in that VM and run `bash scripts/bootstrap.sh` with Python 3.11. A coding agent can prepare a script from accessible source documents. The renderer takes Markdown or chaptered JSON. Use a JSON object with `title`, optional `author`, `cast`, and `chapters`. Each chapter has `title` and `lines`, and each line has `text`, `speaker`, and an optional `kind` of `heading`.
-
-## Check the narration
-
-The renderer checks audio decoding and chapter metadata on every export. For an optional word-by-word comparison, run the transcription check in the same workspace.
+Run the same command again in the same workspace to reuse completed narration. The renderer checks that the exported audio decodes and verifies the M4B chapter titles. For an optional transcript comparison, run the following with your actual filenames and add `--cast` when applicable.
 
 ```sh
 .venv/bin/python -m pip install -r requirements-verify.txt
-.venv/bin/python -m timeless.verify inputs/book.md out/book.m4b --cast inputs/book.cast.json
+.venv/bin/python -m timeless.verify inputs/book.pdf out/book.m4b
 ```
 
-The speech model runs in the workspace and produces a JSON report of differences. Listen to flagged passages before treating them as errors. Uncommon names, interjections, and number formatting can also differ in the transcript.
+The report lists differences to spot-check, including possible transcription errors on names and interjections. See [AGENTS.md](AGENTS.md) for the complete cloud workflow.
 
-## How it works
-
-The renderer uses Kokoro, Misaki and eSpeak NG to synthesize each line. FFmpeg sets the speaking pace, normalizes loudness, and adds chapter markers. It verifies the finished audio by decoding it and reading back its chapter titles and timestamps. Character casting uses the speaker labels and profiles in your script. Plan for several minutes per chapter or longer on a small CPU workspace.
-
-The source is available under [GPL-3.0](LICENSE). Model files have their own upstream licenses and are fetched at runtime.
+Timeless Narrations uses Kokoro with Misaki and eSpeak NG, plus FFmpeg for mastering and export. Source code is available under [GPL-3.0](LICENSE). Voice weights follow their upstream licenses.

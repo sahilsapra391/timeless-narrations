@@ -10,7 +10,7 @@ on:
           - a-call-before-rain
           - the-early-train
   push:
-    branches: [main]
+    branches: [main, improve-playback-and-exports]
     paths:
       - 'timeless/**'
       - 'requirements.txt'
@@ -30,11 +30,11 @@ jobs:
         with:
           python-version: '3.11'
       - run: bash scripts/bootstrap.sh
-      - run: bash scripts/demo.sh "$TIMELESS_SAMPLE"
+      - run: bash scripts/demo.sh "$TIMELESS_SAMPLE" --formats mp3 m4b mp4
         env:
           TIMELESS_SAMPLE: ${{ inputs.script || 'a-call-before-rain' }}
       - uses: actions/upload-artifact@v4
         with:
           name: timeless-narrations-demo
-          path: out/*.m4b
+          path: out/
           if-no-files-found: error

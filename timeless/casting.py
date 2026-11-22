@@ -9,16 +9,27 @@ class Voice:
     semitones: float = 0.0
 
 
-# Synthetic voices performing roles. Age describes the character in the book.
-KOKORO_CAST = {
-    ('female', 'child'): Voice('af_sky', 1.0),
-    ('male', 'child'): Voice('am_puck', 1.5),
-    ('female', 'adult'): Voice('af_heart'),
-    ('male', 'adult'): Voice('am_michael'),
-    ('female', 'elderly'): Voice('af_sarah', -0.75),
-    ('male', 'elderly'): Voice('am_onyx', -0.75),
+# Synthetic performers for the ages and roles described in a manuscript.
+PERSONAS = {
+    "deep-narrator": Voice("am_puck", -2.0),
+    "warm-narrator": Voice("af_heart"),
+    "conversational-adult": Voice("am_michael"),
+    "older-woman": Voice("af_sarah", -0.75),
+    "older-man": Voice("am_onyx", -0.75),
+    "young-girl": Voice("af_sky", 1.0),
+    "young-boy": Voice("am_puck", 1.5),
+    "bright-adult": Voice("af_bella"),
+    "energetic-adult": Voice("am_fenrir"),
 }
-DEEP_NARRATOR = Voice('am_puck', -2)
+KOKORO_CAST = {
+    ("female", "child"): PERSONAS["young-girl"],
+    ("male", "child"): PERSONAS["young-boy"],
+    ("female", "adult"): PERSONAS["warm-narrator"],
+    ("male", "adult"): PERSONAS["conversational-adult"],
+    ("female", "elderly"): PERSONAS["older-woman"],
+    ("male", "elderly"): PERSONAS["older-man"],
+}
+DEEP_NARRATOR = PERSONAS["deep-narrator"]
 QUOTED = re.compile(r'("[^"]+"|“[^”]+”)')
 
 
@@ -33,6 +44,11 @@ def assign_voice(speaker, profiles, engine, narrator_gender, fallback):
             override = info.get('kokoro_voice')
             if override:
                 return Voice(override, float(info.get('pitch_semitones', 0)))
+            if persona := info.get("persona"):
+                if persona not in PERSONAS:
+                    raise ValueError(f"Unknown voice persona {persona!r}")
+                voice = PERSONAS[persona]
+                return Voice(voice.name, float(info.get("pitch_semitones", voice.semitones)))
             cast = KOKORO_CAST.get((info.get('gender'), info.get('age')))
             if cast:
                 return cast

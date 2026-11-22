@@ -1,4 +1,4 @@
-"""Render audio in resumable chunks and export a chaptered M4B."""
+"""Render audio in resumable chunks and export MP3, M4B or MP4."""
 import argparse
 from concurrent.futures import ProcessPoolExecutor
 import hashlib
@@ -11,6 +11,7 @@ import tempfile
 import wave
 
 from .engine import Engine, SAMPLE_RATE, prepare
+from .export import FORMATS, make_additional_exports
 from .manuscript import read_book, voice_for
 
 RENDER_FORMAT = 1
@@ -65,7 +66,7 @@ def chapter_text(title):
     return title.replace("\\", "\\\\").replace("=", "\\=").replace(";", "\\;").replace("#", "\\#").replace("\n", " ")
 
 
-def assemble(book, jobs, output, wpm):
+def assemble(book, jobs, output, formats, wpm, pace, chapter_pause):
     from mutagen.mp4 import MP4
 
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -93,13 +94,13 @@ def assemble(book, jobs, output, wpm):
                     if index + 1 == len(jobs):
                         pause = .9
                     if line is chapter["lines"][-1] and index + 1 < len(jobs):
-                        pause = 2.25
+                        pause = chapter_pause
                     gap = round(pause * SAMPLE_RATE)
                     dest.writeframesraw(bytes(2 * gap))
                     position += frames + gap
                     index += 1
         raw_duration = position / SAMPLE_RATE
-        tempo = raw_duration / (60 * word_count / wpm) if wpm else 1.0
+        tempo = (raw_duration / (60 * word_count / wpm) if wpm else 1.0) * pace
         if not .6 <= tempo <= 1.55:
             raise ValueError(f"Target WPM requires an extreme adjustment ({tempo:.2f}×). Choose a closer pace.")
         audio = folder / "audio.m4a"
@@ -126,8 +127,16 @@ def assemble(book, jobs, output, wpm):
             raise RuntimeError("Chapter metadata failed verification")
         if any(abs(c.start * 1000 - value) > 30 for c, value in zip(chapters, points)):
             raise RuntimeError("Chapter timestamps failed verification")
-        complete.replace(output)
-    return {"output": str(output), "chapters": len(starts), "lines": len(jobs),
+        results = make_additional_exports(ffmpeg_command, complete, formats, book, folder)
+        if "m4b" in formats:
+            results["m4b"] = complete
+        paths = {}
+        for kind in formats:
+            destination = output.with_suffix("." + kind)
+            results[kind].replace(destination)
+            paths[kind] = str(destination)
+    return {"output": paths.get("m4b", next(iter(paths.values()))), "outputs": paths,
+            "chapters": len(starts), "lines": len(jobs),
             "seconds": round(book_audio.info.length, 2), "words": word_count}
 
 
@@ -137,8 +146,12 @@ def main():
     global FFMPEG
     FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("script", type=Path, help="Markdown or chaptered JSON")
-    parser.add_argument("output", type=Path, help="Destination .m4b")
+    parser.add_argument("script", type=Path, help="PDF, EPUB, DOCX, TXT, Markdown, or chaptered JSON")
+    parser.add_argument("output", type=Path, help="Destination file or basename for multiple formats")
+    parser.add_argument("--formats", nargs="+", choices=FORMATS, help="One render, multiple output formats")
+    parser.add_argument("--pace", type=float, default=1.0, help="Final playback multiplier, e.g. 0.90 for 10%% slower")
+    parser.add_argument("--narrator", help="Narrator persona name or Kokoro voice ID")
+    parser.add_argument("--chapter-pause", type=float, default=2.25, help="Seconds of pause between chapters at native pace")
     parser.add_argument("--cast", type=Path, help="Character profiles for Markdown")
     parser.add_argument("--cache", type=Path, default=Path(".models"), help="Voice model cache")
     parser.add_argument("--work-dir", type=Path, default=Path(".timeless-work"), help="Resumable line audio")
@@ -148,9 +161,17 @@ def main():
     args = parser.parse_args()
     if not 1 <= args.workers <= 32 or not math.isfinite(args.speed) or not .5 <= args.speed <= 1.6 or not 0 <= args.wpm <= 300:
         parser.error("Use 1 to 32 workers, speed 0.5 to 1.6, and WPM 0 to 300")
-    if args.output.suffix.lower() != ".m4b":
-        parser.error("The output must end in .m4b")
+    if not .6 <= args.pace <= 1.55 or not 0 <= args.chapter_pause <= 15:
+        parser.error("Use a pace between 0.6 and 1.55 and a chapter gap between 0 and 15 seconds")
+    suffix = args.output.suffix.lower().lstrip(".")
+    if not args.formats and suffix not in FORMATS:
+        parser.error("Choose an output ending in .mp3, .m4b or .mp4, or use --formats")
+    if args.formats and suffix and suffix not in FORMATS:
+        parser.error("Use a basename or a supported extension with --formats")
+    formats = tuple(dict.fromkeys(args.formats or [suffix]))
     book = read_book(args.script, args.cast)
+    if args.narrator:
+        book["narrator"] = args.narrator
     work = args.work_dir / work_key(book, args.speed)
     work.mkdir(parents=True, exist_ok=True)
     jobs = []
@@ -168,4 +189,4 @@ def main():
             for count, _ in enumerate(pool.map(render_line, pending), 1):
                 if count % 25 == 0 or count == len(pending):
                     print(f"Rendered {count}/{len(pending)}", flush=True)
-    print(json.dumps(assemble(book, jobs, args.output, args.wpm), ensure_ascii=False), flush=True)
+    print(json.dumps(assemble(book, jobs, args.output, formats, args.wpm, args.pace, args.chapter_pause), ensure_ascii=False), flush=True)
