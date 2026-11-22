@@ -10,7 +10,7 @@ on:
           - a-call-before-rain
           - the-early-train
   push:
-    branches: [main, improve-playback-and-exports]
+    branches: [main]
     paths:
       - 'timeless/**'
       - 'requirements.txt'
