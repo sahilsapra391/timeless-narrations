@@ -1,0 +1,40 @@
+name: Render a demo
+on:
+  workflow_dispatch:
+    inputs:
+      script:
+        description: Original sample
+        required: true
+        type: choice
+        options:
+          - a-call-before-rain
+          - the-early-train
+  push:
+    branches: [main]
+    paths:
+      - 'timeless/**'
+      - 'requirements.txt'
+      - 'scripts/**'
+      - 'samples/*.md'
+      - 'samples/*.cast.json'
+      - '.github/workflows/demo.yml'
+permissions:
+  contents: read
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: bash scripts/bootstrap.sh
+      - run: bash scripts/demo.sh "$TIMELESS_SAMPLE"
+        env:
+          TIMELESS_SAMPLE: ${{ inputs.script || 'a-call-before-rain' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: timeless-narrations-demo
+          path: out/*.m4b
+          if-no-files-found: error
