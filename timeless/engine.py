@@ -8,9 +8,9 @@ import tempfile
 from urllib.request import urlretrieve
 
 from .casting import kokoro_pronunciation
+from .cast_plan import VOICE_IDS
 
 MODEL_URL = "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/"
-VOICES = {"am_puck", "am_michael", "am_onyx", "am_fenrir", "af_heart", "af_sarah", "af_sky", "af_bella"}
 SAMPLE_RATE = 24000
 
 
@@ -32,8 +32,8 @@ def prepare(cache, voices):
     asset(cache, "onnx/model_quantized.onnx")
     asset(cache, "tokenizer.json")
     for voice in sorted(voices):
-        if voice not in VOICES:
-            raise ValueError(f"Unknown Kokoro voice {voice!r}. Available: {', '.join(sorted(VOICES))}")
+        if voice not in VOICE_IDS:
+            raise ValueError(f"Unknown Kokoro voice {voice!r}. Available: {', '.join(sorted(VOICE_IDS))}")
         asset(cache, f"voices/{voice}.bin")
 
 

@@ -26,9 +26,9 @@ https://github.com/user-attachments/assets/a54a759e-978a-47f0-b053-4a6156df5426
 
 Connect your agent to this repository and open its Linux cloud workspace, or [open the repo in GitHub Codespaces](https://codespaces.new/sahilsapra391/timeless-narrations?quickstart=1). Attach your PDF, EPUB, DOCX, TXT, or Markdown manuscript privately. Paste this prompt.
 
-> Read AGENTS.md. Turn my attached file into a full audiobook at 90% pace with the deep narrator. Cast identifiable characters using the listed voice personas. Preserve the wording and chapters, leave a natural pause between chapters, and give me downloadable MP3, M4B, and MP4 files.
+> Read AGENTS.md. Turn my attached file into a full audiobook at 90% pace with the deep narrator. Analyze the manuscript for speaking characters and named narrators. Give each one a distinct voice, including people of the same age or gender. Keep aliases together and preserve the wording and chapters. Give me downloadable MP3, M4B, and MP4 files and a cast table with each person’s voice and the final pace.
 
-The agent prepares the manuscript and cast, runs the render, and returns the files. For a scanned PDF, it needs an OCR tool in the workspace and should check the recovered text before rendering. For long books, use a workspace that can stay running and keep the workspace files so the agent can resume. Setup and voice-model downloads run in the cloud. No local setup, GPU, or speech API key is needed.
+The agent identifies speakers from dialogue tags, headings, and context. It resolves aliases, prepares the cast, renders the files, and tells you who got which voice, the configured pace, the measured words per minute, and the chapter count and runtime. For a scanned PDF, it needs an OCR tool in the workspace and should check the recovered text before rendering. For long books, use a workspace that can stay running and keep the workspace files so the agent can resume. Setup and voice-model downloads run in the cloud. No local setup, GPU, or speech API key is needed.
 
 ## Run it yourself in the browser
 
@@ -88,7 +88,16 @@ For dialogue, your agent can create Markdown with `##` chapter headings and char
 }
 ```
 
-Pass it with `--cast inputs/book.cast.json`. Profiles can also use `age` (`child`, `adult`, or `elderly`) and `gender` (`male` or `female`). The same character keeps the same voice throughout the book. Ordinary paragraphs use the narrator. The renderer reads speaker labels. The coding agent handles interpreting unlabeled dialogue in a source document.
+Pass it with `--cast inputs/book.cast.json`. Profiles can also use `age` (`child`, `adult`, or `elderly`) and `gender` (`male` or `female`). A character keeps the same voice throughout the book. The renderer assigns different voices when characters share a preferred persona. It looks for an unused voice in the same voice category when one is specified, then uses distinct pitch variants in larger casts. You can add `display_name`, `description`, and `aliases` to a profile. A `kokoro_voice` override locks the voice and pitch for that role.
+
+Ordinary paragraphs use the narrator. The coding agent analyzes unlabeled dialogue and attributes it where the context identifies the speaker. It can inspect the cast before spending time on audio synthesis.
+
+```sh
+.venv/bin/python -m timeless inputs/book.md out/book.m4b \
+  --cast inputs/book.cast.json --pace 0.90 --plan-only
+```
+
+A completed render writes `out/book.cast-report.json` beside the audio. It lists the final voice ID, persona when applicable, pitch, role details, and passage count for each speaker. It also records the pace settings, measured words per minute, chapter gap, runtime, and output paths.
 
 ## Resume or check a render
 

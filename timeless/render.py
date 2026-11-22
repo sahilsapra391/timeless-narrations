@@ -10,11 +10,13 @@ import subprocess
 import tempfile
 import wave
 
+from .cast_plan import plan_cast
+
 from .engine import Engine, SAMPLE_RATE, prepare
 from .export import FORMATS, make_additional_exports
-from .manuscript import read_book, voice_for
+from .manuscript import read_book
 
-RENDER_FORMAT = 1
+RENDER_FORMAT = 2
 ENGINE = None
 FFMPEG = None
 
@@ -137,19 +139,18 @@ def assemble(book, jobs, output, formats, wpm, pace, chapter_pause):
             paths[kind] = str(destination)
     return {"output": paths.get("m4b", next(iter(paths.values()))), "outputs": paths,
             "chapters": len(starts), "lines": len(jobs),
-            "seconds": round(book_audio.info.length, 2), "words": word_count}
+            "seconds": round(book_audio.info.length, 2), "words": word_count,
+            "measured_wpm": round(60 * word_count / book_audio.info.length, 1),
+            "chapter_pause_after_pacing_seconds": round(chapter_pause / tempo, 2)}
 
 
 def main():
-    import imageio_ffmpeg
-
-    global FFMPEG
-    FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("script", type=Path, help="PDF, EPUB, DOCX, TXT, Markdown, or chaptered JSON")
     parser.add_argument("output", type=Path, help="Destination file or basename for multiple formats")
     parser.add_argument("--formats", nargs="+", choices=FORMATS, help="One render, multiple output formats")
     parser.add_argument("--pace", type=float, default=1.0, help="Final playback multiplier, e.g. 0.90 for 10%% slower")
+    parser.add_argument("--plan-only", action="store_true", help="Print cast and requested pacing without synthesis")
     parser.add_argument("--narrator", help="Narrator persona name or Kokoro voice ID")
     parser.add_argument("--chapter-pause", type=float, default=2.25, help="Seconds of pause between chapters at native pace")
     parser.add_argument("--cast", type=Path, help="Character profiles for Markdown")
@@ -172,16 +173,30 @@ def main():
     book = read_book(args.script, args.cast)
     if args.narrator:
         book["narrator"] = args.narrator
+    try:
+        voices, cast = plan_cast(book)
+    except ValueError as exc:
+        parser.error(str(exc))
+    requested = {"title": book["title"], "cast": cast, "pace_multiplier": args.pace,
+                 "configured_wpm": args.wpm or None, "chapter_pause_seconds": args.chapter_pause,
+                 "requested_formats": formats}
+    if args.plan_only:
+        print(json.dumps(requested, ensure_ascii=False, indent=2))
+        return
+    import imageio_ffmpeg
+
+    global FFMPEG
+    FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
     work = args.work_dir / work_key(book, args.speed)
     work.mkdir(parents=True, exist_ok=True)
     jobs = []
     for chapter in book["chapters"]:
         for line in chapter["lines"]:
             idx = len(jobs)
-            voice = voice_for(line.get("speaker", "narrator"), book)
+            voice = voices[line["speaker"]]
             rate = args.speed * (.91 if line.get("kind") == "heading" else 1.0)
             jobs.append((idx, line["text"], voice, rate, work / f"{idx:06d}.wav"))
-    prepare(args.cache, {job[2].name for job in jobs})
+    prepare(args.cache, {job[2].name for job in jobs if not job[-1].is_file()})
     pending = [job for job in jobs if not job[-1].is_file()]
     print(f"Rendering {len(pending)} lines. Resuming {len(jobs)-len(pending)} saved lines.", flush=True)
     if pending:
@@ -189,4 +204,12 @@ def main():
             for count, _ in enumerate(pool.map(render_line, pending), 1):
                 if count % 25 == 0 or count == len(pending):
                     print(f"Rendered {count}/{len(pending)}", flush=True)
-    print(json.dumps(assemble(book, jobs, args.output, formats, args.wpm, args.pace, args.chapter_pause), ensure_ascii=False), flush=True)
+    result = assemble(book, jobs, args.output, formats, args.wpm, args.pace, args.chapter_pause)
+    report = {**requested, **result}
+    report_path = args.output.with_suffix(".cast-report.json")
+    report["report"] = str(report_path)
+    with tempfile.NamedTemporaryFile(dir=report_path.parent, mode="w", encoding="utf-8", delete=False) as stream:
+        json.dump(report, stream, ensure_ascii=False, indent=2)
+        temporary = Path(stream.name)
+    temporary.replace(report_path)
+    print(json.dumps(report, ensure_ascii=False), flush=True)
